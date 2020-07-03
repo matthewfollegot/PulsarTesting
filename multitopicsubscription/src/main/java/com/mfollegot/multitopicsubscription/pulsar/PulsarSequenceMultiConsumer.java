@@ -1,4 +1,4 @@
-package com.jackvanlightly.multitopicordering.pulsar;
+package com.mfollegot.multitopicsubscription.pulsar;
 
 import org.apache.pulsar.client.api.*;
 
@@ -6,10 +6,12 @@ import java.text.MessageFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 
 public class PulsarSequenceMultiConsumer {
     private boolean isCancelled;
     private boolean isCompleted;
+    private Consumer<String> consumer;
 
     PulsarClient client;
     List<String> consumerIds;
@@ -22,29 +24,19 @@ public class PulsarSequenceMultiConsumer {
         consumerIds = new ArrayList<>();
         consumers = new ArrayList<>();
         messages = new Message[topics.size()];
-    }
-
-    public void initialize(boolean fromBeginning) {
         try {
             client = PulsarClient.builder()
                     .serviceUrl(PulsarConnection.ServiceUrl)
                     .build();
 
-            SubscriptionInitialPosition startPos = fromBeginning ? SubscriptionInitialPosition.Earliest : SubscriptionInitialPosition.Latest;
+            Pattern allTopicsInNamespace = Pattern.compile("persistent://ssa/ingress/123/.*");
 
-            int ctr = 1;
-            for(String topic : topics) {
-                consumerIds.add("C" + ctr);
-                ctr++;
-
-                Consumer consumer = client.newConsumer()
-                        .topic(topic)
-                        .subscriptionInitialPosition(startPos)
-                        .subscriptionName(UUID.randomUUID().toString())
-                        .subscribe();
-
-                consumers.add(consumer);
-            }
+            this.consumer = client.newConsumer(Schema.STRING)
+                    .topicsPattern(allTopicsInNamespace)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscriptionName("dsp-input-raw-events-subscription1")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
         }
         catch(PulsarClientException e)
         {
@@ -57,21 +49,41 @@ public class PulsarSequenceMultiConsumer {
     }
 
     public void consume() {
-        registerShutdownHook();
-
-        int lastGlobalCounter = 0;
-        Map<String,Integer> lastTopicCounterMap = new HashMap<>();
-
-        while (!isCancelled) {
-            if(!fillMessages())
-                break; // needs proper error handling rather than breaking out of loop
-
-            NextMessage nextMsg = getNextMessage();
-            if(nextMsg != null) {
-                lastGlobalCounter = processMessage(nextMsg, lastTopicCounterMap, lastGlobalCounter);
+        while (true) {
+            try {
+                Message message = consumer.receive(2, TimeUnit.SECONDS);
+                if (message != null) {
+                    //String dspEvent = new String(message.getData(), StandardCharsets.UTF_8);
+                    //String dspEvent = new String((byte[])message.getValue(), StandardCharsets.UTF_8);
+                    System.out.print("[" + message.getTopicName() + "] ");
+                    //InputEvent inputEvent = mapper.readValue(dspEvent, InputEvent.class);
+                    //System.out.println(dspEvent);
+                    //System.out.println(inputEvent);
+                    consumer.acknowledge(message);
+                    System.out.println("Acknowledged message " + message.getMessageId());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
+
+    //public void consume() {
+        //        registerShutdownHook();
+//
+//        int lastGlobalCounter = 0;
+//        Map<String,Integer> lastTopicCounterMap = new HashMap<>();
+//
+//        while (!isCancelled) {
+//            if(!fillMessages())
+//                break; // needs proper error handling rather than breaking out of loop
+//
+//            NextMessage nextMsg = getNextMessage();
+//            if(nextMsg != null) {
+//                lastGlobalCounter = processMessage(nextMsg, lastTopicCounterMap, lastGlobalCounter);
+//            }
+//        }
+    //}
 
     private boolean fillMessages() {
         try {

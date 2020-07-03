@@ -1,11 +1,8 @@
-package com.jackvanlightly.multitopicordering;
+package com.mfollegot.multitopicsubscription;
 
-import com.jackvanlightly.multitopicordering.kafka.KafkaSequenceConsumer;
-import com.jackvanlightly.multitopicordering.kafka.KafkaSequenceMultiConsumer;
-import com.jackvanlightly.multitopicordering.kafka.KafkaSequenceProducer;
-import com.jackvanlightly.multitopicordering.pulsar.PulsarSequenceConsumer;
-import com.jackvanlightly.multitopicordering.pulsar.PulsarSequenceMultiConsumer;
-import com.jackvanlightly.multitopicordering.pulsar.PulsarSequenceProducer;
+import com.mfollegot.multitopicsubscription.pulsar.PulsarSequenceConsumer;
+import com.mfollegot.multitopicsubscription.pulsar.PulsarSequenceMultiConsumer;
+import com.mfollegot.multitopicsubscription.pulsar.PulsarSequenceProducer;
 
 import java.time.Duration;
 import java.util.*;
@@ -14,16 +11,6 @@ import java.util.concurrent.Executors;
 
 public class Main {
     public static void main(String[] args) {
-//        kafkaTailingTestWithZeroProc(1,1);
-//        kafkaTailingTestWithJitter(1, 1);
-//        kafkaTailingTestFastProducer(1, 1);
-//        kafkaTailingTestWithZeroProc(10,1);
-//        kafkaTailingTestWithJitter(10, 1);
-//        kafkaTailingTestFastProducer(10, 1);
-//        kafkaTimeTravelTest(1,1);
-        kafkaTimeTravelTestMultiConsumer(1,1);
-
-
 //        pulsarTailingTestWithZeroProc(1, 1); // Pulsar Case 1
 //        pulsarTailingTestWithInterval(1, 1); // Pulsar Case 2
 //        pulsarTailingTestWithJitter(1, 1); // Pulsar Case 3
@@ -34,102 +21,12 @@ public class Main {
 //        pulsarTailingTestFastProducer(10,1); // Pulsar Case 8
 //        pulsarTimeTravelTest(1, 1); // Pulsar Case 9
 //        pulsarTimeTravelTest(10, 1); // Pulsar Case 10
+        pulsarTimeTravelMultiConsumer(1,1);
 
-    }
-
-    private static void kafkaTailingTestWithZeroProc(int topic1Ratio, int topic2Ratio) {
-        String suffix = getSuffix();
-        List<String> topics = Arrays.asList("topic1"+suffix, "topic2"+suffix);
-
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-
-        List<Integer> msgCounts = Arrays.asList(topic1Ratio, topic2Ratio); // controls if it is round-robin or other ratio
-        KafkaSequenceProducer orderProducer = new KafkaSequenceProducer(topics, msgCounts);
-        orderProducer.declareTopics();
-        KafkaSequenceConsumer consumer = new KafkaSequenceConsumer(1, topics, false);
-        executor.submit(() -> consumer.consume(Duration.ZERO, Duration.ZERO, false));
-
-        while(!consumer.isAssigned())
-            waitFor(100);
-
-        executor.submit(() -> orderProducer.produce(100, Duration.ZERO));
-
-        executor.shutdown();
-    }
-
-    private static void kafkaTailingTestWithJitter(int topic1Ratio, int topic2Ratio) {
-        String suffix = getSuffix();
-        List<String> topics = Arrays.asList("topic1"+suffix, "topic2"+suffix);
-
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-
-        List<Integer> msgCounts = Arrays.asList(topic1Ratio, topic2Ratio); // controls if it is round-robin or other ratio
-        KafkaSequenceProducer orderProducer = new KafkaSequenceProducer(topics, msgCounts);
-        orderProducer.declareTopics();
-        KafkaSequenceConsumer consumer = new KafkaSequenceConsumer(1, topics, false);
-        executor.submit(() -> consumer.consume(Duration.ofMillis(1), Duration.ofMillis(50), true));
-
-        while(!consumer.isAssigned())
-            waitFor(100);
-
-        executor.submit(() -> orderProducer.produce(100, Duration.ofMillis(25)));
-
-        executor.shutdown();
-    }
-
-    private static void kafkaTailingTestFastProducer(int topic1Ratio, int topic2Ratio) {
-        String suffix = getSuffix();
-        List<String> topics = Arrays.asList("topic1"+suffix, "topic2"+suffix);
-
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-
-        List<Integer> msgCounts = Arrays.asList(topic1Ratio, topic2Ratio); // controls if it is round-robin or other ratio
-        KafkaSequenceProducer orderProducer = new KafkaSequenceProducer(topics, msgCounts);
-        orderProducer.declareTopics();
-        KafkaSequenceConsumer consumer = new KafkaSequenceConsumer(1, topics, false);
-        executor.submit(() -> consumer.consume(Duration.ofMillis(100), Duration.ofMillis(100), false));
-
-        while(!consumer.isAssigned())
-            waitFor(100);
-
-        executor.submit(() -> orderProducer.produce(100, Duration.ofMillis(20)));
-
-        executor.shutdown();
-    }
-
-    private static void kafkaTimeTravelTest(int topic1Ratio, int topic2Ratio) {
-        String suffix = getSuffix();
-        List<String> topics = Arrays.asList("topic1"+suffix, "topic2"+suffix);
-        List<Integer> msgCounts = Arrays.asList(topic1Ratio, topic2Ratio);
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-
-        KafkaSequenceProducer orderProducer = new KafkaSequenceProducer(topics, msgCounts);
-        orderProducer.produce(100, Duration.ofMillis(10));
-
-        KafkaSequenceConsumer consumer = new KafkaSequenceConsumer(1, topics, true);
-        executor.submit(() -> consumer.consume(Duration.ofMillis(0), Duration.ofMillis(0), false));
-
-        executor.shutdown();
-    }
-
-    private static void kafkaTimeTravelTestMultiConsumer(int topic1Ratio, int topic2Ratio) {
-        String suffix = getSuffix();
-        List<String> topics = Arrays.asList("topic1"+suffix, "topic2"+suffix);
-        List<Integer> msgCounts = Arrays.asList(topic1Ratio, topic2Ratio);
-        ExecutorService executor = Executors.newFixedThreadPool(20);
-
-        KafkaSequenceProducer orderProducer = new KafkaSequenceProducer(topics, msgCounts);
-        orderProducer.produce(100, Duration.ofMillis(1));
-
-        KafkaSequenceMultiConsumer consumer = new KafkaSequenceMultiConsumer(topics, true);
-        consumer.initialize();
-        executor.submit(() -> consumer.consume());
-
-        executor.shutdown();
     }
 
     private static void pulsarTailingTestWithZeroProc(int topic1Ratio, int topic2Ratio) {
-        String prefix = "persistent://vanlightly/cluster-1/ns1/";
+        String prefix = "persistent://ssa/ingress/";
         String suffix = getSuffix();
         List<String> topics = Arrays.asList(prefix+"topic1"+suffix, prefix+"topic2"+suffix);
         ExecutorService executor = Executors.newFixedThreadPool(5);
@@ -148,7 +45,7 @@ public class Main {
     }
 
     private static void pulsarTailingTestWithInterval(int topic1Ratio, int topic2Ratio) {
-        String prefix = "persistent://vanlightly/cluster-1/ns1/";
+        String prefix = "persistent://ssa/ingress/";
         String suffix = getSuffix();
         List<String> topics = Arrays.asList(prefix+"topic1"+suffix, prefix+"topic2"+suffix);
         ExecutorService executor = Executors.newFixedThreadPool(5);
@@ -166,7 +63,7 @@ public class Main {
     }
 
     private static void pulsarTailingTestWithJitter(int topic1Ratio, int topic2Ratio) {
-        String prefix = "persistent://vanlightly/cluster-1/ns1/";
+        String prefix = "persistent://ssa/ingress/";
         String suffix = getSuffix();
         List<String> topics = Arrays.asList(prefix+"topic1"+suffix, prefix+"topic2"+suffix);
         ExecutorService executor = Executors.newFixedThreadPool(5);
@@ -184,7 +81,7 @@ public class Main {
     }
 
     private static void pulsarTailingTestFastProducer(int topic1Ratio, int topic2Ratio) {
-        String prefix = "persistent://vanlightly/cluster-1/ns1/";
+        String prefix = "persistent://ssa/ingress/";
         String suffix = getSuffix();
         List<String> topics = Arrays.asList(prefix+"topic1"+suffix, prefix+"topic2"+suffix);
         ExecutorService executor = Executors.newFixedThreadPool(5);
@@ -203,7 +100,7 @@ public class Main {
     }
 
     private static void pulsarTimeTravelTest(int topic1Ratio, int topic2Ratio) {
-        String prefix = "persistent://vanlightly/cluster-1/ns1/";
+        String prefix = "persistent://ssa/ingress/";
         String suffix = getSuffix();
         List<String> topics = Arrays.asList(prefix+"topic1"+suffix, prefix+"topic2"+suffix);
 
@@ -220,21 +117,39 @@ public class Main {
     }
 
     private static void pulsarTimeTravelMultiConsumer(int topic1Ratio, int topic2Ratio) {
-        String prefix = "persistent://vanlightly/cluster-1/ns2/";
+        String prefix = "persistent://ssa/ingress/123/";
         String suffix = getSuffix();
         List<String> topics = Arrays.asList(prefix+"topic1"+suffix, prefix+"topic2"+suffix);
+        List<String> topic = Arrays.asList(prefix + "topic7" + suffix);
 
-        ExecutorService executor = Executors.newFixedThreadPool(5);
+        ExecutorService executor = Executors.newFixedThreadPool(6);
 
         List<Integer> msgCounts = Arrays.asList(topic1Ratio, topic2Ratio); // controls if it is round-robin or other ratio
         PulsarSequenceProducer orderProducer = new PulsarSequenceProducer(topics, msgCounts);
-        orderProducer.produce(100, Duration.ofMillis(100));
+        PulsarSequenceProducer orderProducer2 = new PulsarSequenceProducer(topics, msgCounts);
+        PulsarSequenceProducer orderProducer3 = new PulsarSequenceProducer(topics, msgCounts);
+        PulsarSequenceProducer orderProducer4 = new PulsarSequenceProducer(topics, msgCounts);
+        PulsarSequenceProducer lateOrderProducer = new PulsarSequenceProducer(topic, msgCounts);
+//        executor.submit(() -> orderProducer.produce(200, Duration.ofMillis(300)));
+        orderProducer.produce(30, Duration.ofMillis(300));
+//        executor.submit(() -> orderProducer2.produce(200, Duration.ofMillis(300)));
+        orderProducer2.produce(30, Duration.ofMillis(300));
+        executor.submit(() -> orderProducer3.produce(1200, Duration.ofMillis(300)));
+        executor.submit(() -> orderProducer4.produce(1200, Duration.ofMillis(300)));
 
+        System.out.print("Topics: " + topics.toString());
+        System.out.println("and finalement, [" + topics.toString() + "]");
         PulsarSequenceMultiConsumer consumer = new PulsarSequenceMultiConsumer(topics);
-        consumer.initialize(true);
+        PulsarSequenceMultiConsumer consumer2 = new PulsarSequenceMultiConsumer(topics);
+//        consumer.initialize(true);
         executor.submit(() -> consumer.consume());
+        //executor.submit(() -> consumer2.consume());
+        executor.submit(() -> {
+                    lateOrderProducer.produce(500, Duration.ofMillis(1000));
+                }
+        );
 
-        executor.shutdown();
+        //executor.shutdown();
     }
 
     private static void waitFor(int milliseconds) {

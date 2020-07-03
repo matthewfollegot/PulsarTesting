@@ -1,4 +1,4 @@
-# Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
+git # Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
 !/.mvn/wrapper/maven-wrapper.jar
 
 # Eclipse
@@ -16,7 +16,7 @@
  
 # Maven
 log/
-target/
+multitopicsubscription/target/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup

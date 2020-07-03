@@ -1,4 +1,4 @@
-package com.jackvanlightly.multitopicordering.pulsar;
+package com.mfollegot.multitopicsubscription.pulsar;
 
 import org.apache.pulsar.client.api.*;
 
@@ -88,7 +88,7 @@ public class PulsarSequenceProducer {
 //    }
 
     public void produce(int messageCount, Duration gap) {
-        registerShutdownHook();
+        //registerShutdownHook();
         try {
             int topicSelectionCounter = 0;
             int globalCounter = 1;
