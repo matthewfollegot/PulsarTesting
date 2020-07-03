@@ -7,9 +7,10 @@ git # Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
 .settings/
  
 # Intellij
-.idea/
+.idea/*
 *.iml
 *.iws
+
  
 # Mac
 .DS_Store
