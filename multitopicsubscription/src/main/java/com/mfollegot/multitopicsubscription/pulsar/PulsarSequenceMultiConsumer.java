@@ -36,6 +36,7 @@ public class PulsarSequenceMultiConsumer {
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscriptionName("dsp-input-raw-events-subscription1")
                     .subscriptionType(SubscriptionType.Shared)
+                    .receiverQueueSize(50)
                     .subscribe();
         }
         catch(PulsarClientException e)
@@ -48,19 +49,19 @@ public class PulsarSequenceMultiConsumer {
         }
     }
 
-    public void consume() {
+    public void consume(int timeoutInMillis) {
         while (true) {
             try {
                 Message message = consumer.receive(2, TimeUnit.SECONDS);
                 if (message != null) {
-                    //String dspEvent = new String(message.getData(), StandardCharsets.UTF_8);
-                    //String dspEvent = new String((byte[])message.getValue(), StandardCharsets.UTF_8);
                     System.out.print("[" + message.getTopicName() + "] ");
-                    //InputEvent inputEvent = mapper.readValue(dspEvent, InputEvent.class);
-                    //System.out.println(dspEvent);
-                    //System.out.println(inputEvent);
                     consumer.acknowledge(message);
-                    System.out.println("Acknowledged message " + message.getMessageId());
+
+                    // message format is org.apache.pulsar.client.impl.TopicMessageIdImpl@405c8754
+                    System.out.println("Acknowledged message " + message.getMessageId().toString().split("@")[1]
+                            + " with consumer " + consumer.getConsumerName());
+
+                    waitFor(timeoutInMillis);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -68,22 +69,22 @@ public class PulsarSequenceMultiConsumer {
         }
     }
 
-    //public void consume() {
-        //        registerShutdownHook();
-//
-//        int lastGlobalCounter = 0;
-//        Map<String,Integer> lastTopicCounterMap = new HashMap<>();
-//
-//        while (!isCancelled) {
-//            if(!fillMessages())
-//                break; // needs proper error handling rather than breaking out of loop
-//
-//            NextMessage nextMsg = getNextMessage();
-//            if(nextMsg != null) {
-//                lastGlobalCounter = processMessage(nextMsg, lastTopicCounterMap, lastGlobalCounter);
-//            }
-//        }
-    //}
+    public void consume() {
+                registerShutdownHook();
+
+        int lastGlobalCounter = 0;
+        Map<String,Integer> lastTopicCounterMap = new HashMap<>();
+
+        while (!isCancelled) {
+            if(!fillMessages())
+                break; // needs proper error handling rather than breaking out of loop
+
+            NextMessage nextMsg = getNextMessage();
+            if(nextMsg != null) {
+                lastGlobalCounter = processMessage(nextMsg, lastTopicCounterMap, lastGlobalCounter);
+            }
+        }
+    }
 
     private boolean fillMessages() {
         try {
@@ -94,7 +95,6 @@ public class PulsarSequenceMultiConsumer {
                         messages[i] = message;
                 }
             }
-
             return true;
         }
         catch(PulsarClientException e) {
@@ -116,13 +116,10 @@ public class PulsarSequenceMultiConsumer {
                 }
             }
         }
-
         return new NextMessage(messages[targetIndex], targetIndex);
     }
 
-    private int processMessage(NextMessage nextMsg,
-                               Map<String,Integer> lastTopicCounterMap,
-                               int lastGlobalCounter) {
+    private int processMessage(NextMessage nextMsg, Map<String,Integer> lastTopicCounterMap, int lastGlobalCounter) {
         Message msg = nextMsg.getMessage();
         Consumer consumer = consumers.get(nextMsg.getIndex());
         String consumerId = consumerIds.get(nextMsg.getIndex());

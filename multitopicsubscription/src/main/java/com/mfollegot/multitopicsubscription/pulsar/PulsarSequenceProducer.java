@@ -116,7 +116,8 @@ public class PulsarSequenceProducer {
                             .send();
 
                     print(MessageFormat.format("Topic: {0}, TC: {1}, GC: {2}",
-                            topic.substring(topic.lastIndexOf("/")+1, topic.indexOf("_")),
+                            //topic.substring(topic.lastIndexOf("/")+1, topic.indexOf("_")),
+                            topic,
                             topicCounter,
                             globalCounter));
 
