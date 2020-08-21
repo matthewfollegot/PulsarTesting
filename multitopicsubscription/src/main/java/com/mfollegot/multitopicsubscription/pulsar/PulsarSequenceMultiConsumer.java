@@ -19,24 +19,24 @@ public class PulsarSequenceMultiConsumer {
     List<String> topics;
     Message[] messages;
 
-    public PulsarSequenceMultiConsumer(List<String> topics) {
-        this.topics = topics;
+    public PulsarSequenceMultiConsumer() {
+        this(Pattern.compile("persistent://ssa/ingress/123/.*"));
+    }
+
+    public PulsarSequenceMultiConsumer(Pattern topicPattern) {
         consumerIds = new ArrayList<>();
         consumers = new ArrayList<>();
-        messages = new Message[topics.size()];
         try {
             client = PulsarClient.builder()
                     .serviceUrl(PulsarConnection.ServiceUrl)
                     .build();
 
-            Pattern allTopicsInNamespace = Pattern.compile("persistent://ssa/ingress/123/.*");
-
             this.consumer = client.newConsumer(Schema.STRING)
-                    .topicsPattern(allTopicsInNamespace)
+                    .topicsPattern(topicPattern)
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscriptionName("dsp-input-raw-events-subscription1")
                     .subscriptionType(SubscriptionType.Shared)
-                    .receiverQueueSize(50)
+//                    .receiverQueueSize(50)
                     .subscribe();
         }
         catch(PulsarClientException e)
